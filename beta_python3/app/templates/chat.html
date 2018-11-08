@@ -1,0 +1,51 @@
+<script>
+function sendchat(){
+  var msg=$("#comment_input").val();
+  $("#comment_input").val("");
+  if (msg.length>0) {
+	$.ajax({
+	    url: 'chat/{{batch_id}}/',
+	    type: 'POST',
+	    data:{
+	            csrfmiddlewaretoken: '{{ csrf_token }}',
+	            message: msg,
+	            batch_id:{{batch_id}}
+	    },
+	    success: function(server_data) {
+	        $("#comment_textarea").val(server_data.log),
+	        console.log( "save:: "+JSON.stringify(server_data.log) );
+	        console.log(server_data)
+	        //$("#comment_textarea").scrollTop = $("#comment_textarea").scrollHeight;
+	        $("#comment_textarea").scrollTop($("#comment_textarea")[0].scrollHeight - $("#comment_textarea").height());
+
+	    }
+	  });  	
+  }
+  
+}
+function getchat(){
+  $.ajax({
+    url: 'chat/{{batch_id}}/',
+    type: 'GET',
+    success: function(server_data) {
+        $("#comment_textarea").val(server_data.log);
+        console.log( "save:: "+JSON.stringify(server_data.log) );
+        console.log(server_data);
+        //$("#comment_textarea").scrollTop = $("#comment_textarea").scrollHeight;
+        $("#comment_textarea").scrollTop($("#comment_textarea")[0].scrollHeight - $("#comment_textarea").height());
+    }
+  });
+}
+function mychatkey(event) {
+    var x = event.keyCode;
+    if (x == 13) {  // 13 is the Enter key
+    	sendchat()
+	    
+    }
+}
+</script>
+<div class="form-group">
+  <textarea id="comment_textarea" class="form-control col-xs-12" rows="20"  readonly></textarea>
+  <input id="comment_input" class="col-xs-12"type="text" 
+  value="" autofocus onkeydown="mychatkey(event)">
+</div>

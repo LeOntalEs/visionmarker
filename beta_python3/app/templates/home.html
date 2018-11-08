@@ -1,0 +1,638 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  
+  <meta charset="utf-8">
+  <!--link rel="stylesheet" type="text/css" href="static/mystyle.css"-->
+  <link rel="stylesheet" href="{% static 'bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'mytt.css' %}">
+  <script src="{% static 'jquery.min.js' %} "></script>
+  <script src="{% static 'typeahead.bundle.min.js' %} "></script>
+  <script src="{% static 'bootstrap.min.js' %} "></script>
+  <script src="{% static 'd3.min.js' %} "></script>
+  
+  <!--script src="{% static 'myscript.js' %} "></script-->
+  <title>Vision</title>
+  <style type="text/css">
+  textarea { font-size: 12px !important; }
+  input { font-size: 12px !important; }
+  div { font-size: 14px !important; }
+  </style>
+<head>
+<body>
+
+
+
+
+	<div class="container-fluid">
+    <div class="row col-xs-12">
+      <div class="col-xs-2">
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+
+              <a data-toggle="collapse" href="#collapse1">Hello, {{username}}</a>
+
+          </div>
+          <div id="collapse1" class="panel-collapse collapse">
+            <ul class="list-group">
+              <li class="list-group-item"><a href="{% url 'wl_auth:change_password' %}">Change Password</a></li>
+            </ul>
+            <div class="panel-footer "><a href="{% url 'wl_auth:signout' %}">Sign out</a></div>
+          </div>  
+            
+          <div class="panel-body">
+            {% include 'chat.html' %}
+            
+
+            <!-- end container-->
+
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xs-10">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+              <div class="container-fluid">
+              {%if batch_id %}
+                {%if isreviewer %}
+                  <button id="myrework" type="button" class="btn btn-xs btn-danger col-xs-1">rework </button>
+                {% endif %}
+                <a class="col-xs-10 text-center"> {{msg}} [batch_id: {{batch_id}}]</a>
+                <button id="mysubmit" type="button" class="btn btn-xs btn-success col-xs-1">next </button>
+              {% else %}
+                <a class="col-xs-10 text-center">{{msg}} No task in the queue.</a>
+              {% endif %}
+            </div>
+            </div>
+            <div class="panel-body"><div id="overlay" ></div></div>
+        </div>
+      </div>
+
+    </div>
+	</div>
+  <!-- Modal draw rect-->
+	<div class="modal fade" id="myModal" role="dialog">
+		<div class="modal-dialog">
+
+			<!-- Modal content-->
+			<div class="modal-content">
+				<div class="modal-header">
+  					<h4 class="modal-title col-xs-4">Detail</h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+				</div>
+
+        <div class="modal-body">
+          <div class="container-fluid bd-example-row">
+            <div class="row">
+              <p id="editDetail">
+              <div class="container col-xs-12">
+                
+                <div id="ddbrand" class="col-xs-3">
+                  <input id="edbrand" class="typeahead form-control" type="text" placeholder="brand" autofocus>
+                </div>
+
+                <div id="ddmodel" class="col-xs-3">
+                  <input id="edmodel" class="typeahead form-control" type="text" placeholder="model" autofocus>
+                </div>
+
+                <div id="ddcolor" class="col-xs-3">
+                  <input id="edcolor" class="typeahead form-control" type="text" placeholder="color" autofocus>
+                </div>
+
+                <div id="ddnn" class="col-xs-3">
+                  <input id="ednn" class="typeahead form-control" type="text" placeholder="nickname" autofocus>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+			  <div class="modal-footer">
+          <button id="editRemove" type="button" class="btn btn-danger pull-left" >remove</button>
+				  <button id="editSave" type="button" class="btn btn-success" data-dismiss="modal" onclick='save_detail()'>OK</button>
+        </div>
+			</div>
+		</div>
+	</div>
+
+  <!-- Modal submission-->
+  <div class="modal fade" id="submissionModal" role="dialog">
+    <div class="modal-dialog">
+
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+            <h4 class="modal-title col-xs-12">Confirm Submission</h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          Do you want to save all labels?
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn " data-dismiss="modal" 
+            onclick='$('#submissionModal').modal('show');'>No</button>
+          <button type="button" class="btn btn-success" data-dismiss="modal" onclick='makesubmission();'>Yes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Rework-->
+  <div class="modal fade" id="reworkModal" role="dialog">
+    <div class="modal-dialog">
+
+      <!-- Modal content-->
+      <div class="modal-content">
+        <div class="modal-header">
+            <h4 class="modal-title col-xs-12">Confirm Submission</h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          Do you want to incomplete job to labeller?
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn " data-dismiss="modal" 
+            onclick='$('#submissionModal').modal('show');'>No</button>
+          <button type="button" class="btn btn-danger" data-dismiss="modal" onclick='makerework();'>Yes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+
+var  rmax=1080, cmax=1920, svg_h=1080, svg_w=1920;//cmax natural width of img whereas svg_w for svg width
+//var  url="dataset/_01.jpg";
+var  label_color="#00FF00";
+var  text_color="#FFFF00";
+var  _labels,all_labels,_k;
+var  edit_id,_isdraw, image_index;
+var  beta=cmax/svg_w;//svgtoraw
+var  alpha=svg_w/cmax;//rawtosvg
+var  rec_w, rec_h, rec_x, rec_y;
+var  selected_rect_index=null;
+var  mainimg = null;
+
+
+////////////////////page init//////////////
+var svg = d3.select("div#overlay").append("svg")
+  .attr("width", svg_w+0.1*svg_w+10)
+  .attr("height", svg_h);
+
+var images=[
+  {"src":"static/dataset/_00.jpg", "labels":[]},
+  {"src":"static/dataset/_01.jpg", "labels":[]},
+  {"src":"static/dataset/_02.jpg", "labels":[]},
+  {"src":"static/dataset/_03.jpg", "labels":[]},
+  {"src":"static/dataset/_04.jpg", "labels":[]},
+  {"src":"static/dataset/_05.jpg", "labels":[]},
+  {"src":"static/dataset/_06.jpg", "labels":[]},
+  {"src":"static/dataset/_07.jpg", "labels":[]},
+  {"src":"static/dataset/_08.jpg", "labels":[]},
+  {"src":"static/dataset/_09.jpg", "labels":[]},];
+
+  
+///////////////////typeahead
+//////////////////////typeahead
+var brands = new Bloodhound({
+  datumTokenizer: Bloodhound.tokenizers.whitespace,
+  queryTokenizer: Bloodhound.tokenizers.whitespace,
+  prefetch: "{% static 'typeahead/brands.json' %}"
+});
+$('#ddbrand .typeahead').typeahead(null, {
+  name: 'brands',
+  source: brands
+});
+
+var models = new Bloodhound({
+  datumTokenizer: Bloodhound.tokenizers.whitespace,
+  queryTokenizer: Bloodhound.tokenizers.whitespace,
+  prefetch: "{% static 'typeahead/models.json' %}"
+});
+$('#ddmodel .typeahead').typeahead(null, {
+  name: 'models',
+  source: models
+});
+
+var colors = new Bloodhound({
+  datumTokenizer: Bloodhound.tokenizers.whitespace,
+  queryTokenizer: Bloodhound.tokenizers.whitespace,
+  prefetch: "{% static 'typeahead/colors.json' %}"
+});
+$('#ddcolor .typeahead').typeahead(null, {
+  name: 'colors',
+  source: colors
+});
+
+var nicknames = new Bloodhound({
+  datumTokenizer: Bloodhound.tokenizers.whitespace,
+  queryTokenizer: Bloodhound.tokenizers.whitespace,
+  prefetch: "{% static 'typeahead/nicknames.json' %}"
+});
+$('#ddnn .typeahead').typeahead(null, {
+  name: 'nicknames',
+  source: nicknames
+});
+
+
+
+     ////////////////////////////////////removing rectangle
+    d3.select("#editRemove")
+      .on("click",function() {
+          d3.select("#"+edit_id)
+            .transition().duration(500)
+            .attr("width", 0)
+            .attr("height", 0)
+            .remove();
+          d3.select("#t"+edit_id)
+            .text("")
+            .remove();
+
+      //
+      for (i=0; i<_labels.length; i++){
+        if (_labels[i].id==edit_id){
+          _labels.splice(i,1);
+        }
+      }
+      $('#myModal').modal('hide'); 
+      savedata();
+      draw(_labels)
+    });
+
+    
+
+    svg.on("mousemove", function() {
+      if(_isdraw==1){//here
+        console.log("mouse move");
+        xf=Math.max(0,d3.mouse(this)[0]*beta);
+        yf=Math.max(0,d3.mouse(this)[1]*beta);
+        xf=Math.min(xf,svg_w*beta);
+        yf=Math.min(yf,svg_h*beta);
+        _w=Math.abs(rec_x - xf );
+        _h=Math.abs(rec_y - yf );
+        _x=Math.min(rec_x, xf);
+        _y=Math.min(rec_y, yf);
+        crect = svg.selectAll("rect.crect")
+          .data([{"x":_x,"y":_y,"width":_w,"height":_h}])
+          .attr("x",function(d){return d.x*alpha})
+          .attr("y",function(d){return d.y*alpha})
+          .attr("width",function(d){return d.width*alpha})
+          .attr("height",function(d){return d.height*alpha})
+          .attr("fill","none")
+          .attr("stroke","#FF0000")
+          .attr("stroke-width", 3);
+      }  
+    });
+
+    svg.on("mouseup",function() {
+      console.log("svg mouse up");  
+      if(_isdraw==1 ){
+        crect = svg.selectAll("rect.crect")
+          .data([])
+          .exit().remove();
+        rect={}
+        xf=~~(d3.mouse(this)[0]*beta);
+        yf=~~(d3.mouse(this)[1]*beta);
+        rec_w=Math.abs(rec_x - xf );
+        rec_h=Math.abs(rec_y - yf );
+        rec_x=Math.min(rec_x, xf);
+        rec_y=Math.min(rec_y, yf);
+        //rect["id"]= "rec"+_k;
+        rect["id"]='nxxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+                    return v.toString(16);
+                  });
+        rect["x"]=parseInt(rec_x);
+        rect["y"]=parseInt(rec_y);
+        rect["width"]=parseInt(rec_w);
+        rect["height"]=parseInt(rec_h); 
+        //rect["brand"]="brand"+_k;
+        //rect["model"]="model"+_k;
+        //rect["color"]="color"+_k;
+        //rect["nn"]="nn"+_k;
+        rect["brand"]="";
+        rect["model"]="";
+        rect["color"]="";
+        rect["nn"]="";      
+        //console.log(JSON.stringify(rect));
+        if(rec_w>10 && rec_h>10){
+          _labels.push(rect);
+          edit_id=rect.id;
+          console.log("svg mouse up on "+ edit_id);
+          $('#editDetail').text( JSON.stringify( rect ) );
+          $('#edbrand').val("==")
+          $('#myModal').modal('show'); 
+          _k++;
+        }
+        _isdraw=0;
+        draw(_labels);
+        console.log( JSON.stringify(_labels) );
+      }  
+
+    });
+
+
+    
+
+    $('#myModal').on('shown.bs.modal', function () {
+        $('#edbrand').focus();
+        for (i=0; i<_labels.length; i++){
+          if (_labels[i].id==edit_id){
+            selected_rect_index = i;
+
+            //$('#edbrand').val(_labels[i]["brand"]);
+            //$('#edmodel').val(_labels[i]["model"]);
+            //$('#edcolor').val(_labels[i]["color"]);
+            //$('#ednn').val(_labels[i]["nn"]);
+            
+            $('#ddbrand .typeahead').typeahead('val',_labels[i]["brand"]);
+            $('#ddmodel .typeahead').typeahead('val',_labels[i]["model"]);
+            $('#ddcolor .typeahead').typeahead('val',_labels[i]["color"]);
+            $('#ddnn .typeahead').typeahead('val',_labels[i]["nn"]);
+          }
+        }        
+    });
+    $('#myModal').bind('keypress', function(e) {
+      if(e.keyCode==13){
+        save_detail();
+        $('#myModal').modal('hide');
+      }
+
+    });
+    $('#editRemove').focus(function(){
+        
+        $('#editSave').focus();
+    })
+
+    $('#editSave').focus(function(){
+        $('#edbrand').focus();
+    });
+
+    $("#mysubmit").click(function(){
+      $('#submissionModal').modal('show'); 
+    });
+    $("#myrework").click(function(){
+      $('#reworkModal').modal('show'); 
+    });
+
+//////////////////function///////////
+  function makerework(){
+    images[image_index]["labels"]=_labels;
+      $.ajax({
+        url: 'batch/{{batch_id}}/',
+        type: 'POST',
+        data:{
+                client_data: JSON.stringify(images),
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                rework: 'True',
+        },
+        success: function(server_data) {
+            //images=server_data;
+            console.log( "save:: "+JSON.stringify(server_data) );
+            location.reload();  
+        }
+      });
+  }
+  function makesubmission(){
+    images[image_index]["labels"]=_labels;
+      $.ajax({
+        url: 'batch/{{batch_id}}/',
+        type: 'POST',
+        data:{
+                client_data: JSON.stringify(images),
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                submission: '{{isreviewer}}',
+        },
+        success: function(server_data) {
+            //images=server_data;
+            console.log( "save:: "+JSON.stringify(server_data) );
+            location.reload();  
+        }
+      });
+  }
+  function savedata(){
+    images[image_index]["labels"]=_labels;
+    $.ajax({
+      url: 'batch/{{batch_id}}/',
+      type: 'POST',
+      data:{
+              client_data: JSON.stringify(images),
+              csrfmiddlewaretoken: '{{ csrf_token }}'
+      },
+      success: function(server_data) {
+          //images=server_data;
+          console.log( "save:: "+JSON.stringify(server_data) );
+          
+      }
+    });
+  }
+  function draw(data){
+    //var alpha=svg_w/cmax;
+    //console.log(JSON.stringify(_labels));
+    var rects = svg.selectAll("rect")
+        .data(data);
+    rects
+      .transition().duration(100)
+      .attr("id",function(d,i){return d.id})
+      .attr("x",function(d){return d.x*alpha})
+      .attr("y",function(d){return d.y*alpha})
+      .attr("width",function(d){return d.width*alpha})
+      .attr("height",function(d){return d.height*alpha})
+      .attr("fill","none")
+      .attr("stroke",label_color)
+      .attr("stroke-width", 3)
+
+    rects.exit()
+      .transition().duration(100)
+      .attr("width", 0)
+      .attr("height", 0)
+      .remove()
+
+    rects.enter()
+      .append("rect")
+      .on("click", function(d,i) {
+        edit_id=d.id;
+        console.log("rects.enter() click on "+ edit_id);
+        $('#editDetail').text( JSON.stringify( _labels[i] ) );
+        $('#myModal').modal('show'); 
+        
+        d3.event.stopPropagation();
+      })
+      .on("mouseover",function(d,i) {
+        d3.select(this)
+        .attr("stroke-width", 10)
+        .attr("stroke","#00FF00");
+
+        d3.event.stopPropagation();
+
+        console.log("debug mouse over id: "+this.id)
+      })
+      .on("mouseleave",function(d,i) {
+        d3.select(this)
+        //.transition().duration(300)
+        .attr("stroke-width", 3)
+        .attr("stroke","#00FF00");
+        d3.event.stopPropagation();
+      })
+      .attr("id",function(d,i){return d.id})
+      .attr("x",function(d){return 0})
+      .attr("y",function(d){return 0})
+      .attr("width",function(d){return svg_w})
+      .attr("height",function(d){return svg_h})
+      .transition().duration(300)
+      .attr("x",function(d){return d.x*alpha})
+      .attr("y",function(d){return d.y*alpha})
+      .attr("width",function(d){return d.width*alpha})
+      .attr("height",function(d){return d.height*alpha})
+      .attr("fill","none")
+      .attr("stroke",label_color)
+      .attr("stroke-width", 3)
+
+    var texts = svg.selectAll("text")
+      .data(data);
+    texts
+      .attr("id",function(d,i){return "t"+d.id})
+      .attr("x", function(d) { return d.x*alpha; })
+      .attr("y", function(d) { return d.y*alpha-3; })
+      .attr("fill",text_color)
+      .text( function (d) { return d.brand+" "+d.model+" "+d.color+" "+d.nn; });
+    texts.enter()
+      .append("text")
+      .attr("id",function(d,i){return "t"+d.id})
+      .attr("x", function(d) { return d.x*alpha; })
+      .attr("y", function(d) { return d.y*alpha-3; })
+      .attr("fill",text_color)
+      .text( function (d) { return d.brand+" "+d.model+" "+d.color+" "+d.nn; });
+    texts.exit()
+      .text("")
+      .remove();
+  }
+
+  function save_detail(){
+    console.log("debug: save_detail:: _labels:"+ JSON.stringify(_labels))
+    console.log("debug: save_detail:: images:"+ JSON.stringify( images))
+    _labels[selected_rect_index].brand = $('#edbrand').val();
+    _labels[selected_rect_index].model = $('#edmodel').val();
+    _labels[selected_rect_index].color = $('#edcolor').val();
+    _labels[selected_rect_index].nn = $('#ednn').val();
+    
+    savedata();
+    draw(_labels)
+  }
+  function bringi(_i){
+    console.log("bringi:  _i:"+_i);
+    image_index=_i;
+    mainimg = d3.select("thumbnail"+_i);
+    _labels=images[_i]["labels"]
+    d3.selectAll("image")
+      .each(function(d,i) {
+        //console.log("bringi:  _i:"+_i+", i:"+i);
+        if(_i==i){
+          console.log("bringi if :  _i:"+_i+", i:"+i);
+          d3.select(this)
+            .on("click",null)
+            .on("mousedown",function() {
+              console.log("mainimg mouse down");
+              _isdraw=1;
+              rec_x=d3.mouse(this)[0]*beta;
+              rec_y=d3.mouse(this)[1]*beta;
+              crect = svg.selectAll("rect.crect")
+                      .data([{"x":rec_x, "y":rec_y, "width":0, "height":0}]);
+
+              crect.enter()
+                .append("rect")
+                .attr("class","crect")
+                .attr("x",function(d){return d.x*alpha})
+                .attr("y",function(d){return d.y*alpha})
+                .attr("width",function(d){return d.width*alpha})
+                .attr("height",function(d){return d.height*alpha})
+                .attr("fill","none")
+                .attr("stroke","#FF0000")
+                .attr("stroke-width", 3);
+            })
+            .transition().duration(100)
+            .attr("x",0 )
+            .attr("y",0 )
+            .attr("width", svg_w)
+            .attr("height", svg_h);
+        }else{
+          d3.select(this)            
+            .on("click",function(d,j){
+              console.log("svgimgs2 clicked: "+ i);
+              bringi(i);
+            })
+            .on("mousedown",null)
+            //.no("mouseover", null)            
+            .transition().duration(600)
+            .attr("x",svg_w+10 )
+            .attr("y", function(d,j){return svg_h*0.1*i} )
+            .attr("width", 0.1*svg_w)
+            .attr("height", 0.1*svg_h);
+        }
+      });
+
+
+    draw(_labels);
+  }
+
+
+$( document ).ready(function() {
+  $.getJSON("batch/{{batch_id}}", function(data){
+    console.log("Debug");
+    images=data;
+    images.forEach(function (im) {
+      im["labels"].forEach(function (lab) {
+        lab["id"]='rxxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+                    return v.toString(16);
+                  });
+      });
+    });
+
+    console.log("debug doc.ready::image: "+ JSON.stringify(images))
+
+    var svgimgs = svg.selectAll("image thumbnail")
+    .data(images)
+    .enter()
+    .append("image")
+    //.on("load",function(d,i) {
+    //  console.log("svgimgs loaded: "+d3.select(this))
+    //})
+    .on("click",function(d,i){
+      console.log("svgimgs clicked: "+ i);
+      bringi(i);
+    })
+    .attr("class", "thumbnail")
+    .attr("id", function(d,i){return "thumbnail"+i})
+    .attr("xlink:href", function(d,i){return 'static/dataset/'+d.src})
+    .attr("x",svg_w)
+    .attr("y",function(d,i){return svg_h*0.1*i })
+    .attr("width", 0.1*svg_w)
+    .attr("height", 0.1*svg_h);
+
+    
+    
+    console.log( JSON.stringify(images) );
+    _k=images[0]["labels"].length
+        
+    console.log( "ready!" );
+    bringi(0);
+    draw(_labels);
+    getchat();
+  });
+});
+$(window).load( function(){
+  //get_labels();
+});
+
+
+</script>
+</body>
+</html>
+    
