@@ -80,7 +80,7 @@ def batch(request, batch_id):
 					})
 			item={'src':I.src_path, 'labels': labels}	
 			data.append(item)
-		print(data)
+		#print(data)
 		return JsonResponse(data, safe=False)
 	if request.method=='POST':
 		client_data = json.loads(request.POST.get('client_data'))

@@ -97,3 +97,5 @@ migrations/
 .ipynb_checkpoints/
 beta/static/dataset/
 beta/static/raw/
+
+.vscode/

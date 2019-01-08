@@ -60,3 +60,13 @@ class Label(models.Model):
 	def __str__(self):
 		return "LID%07d"%self.id
 
+
+from django.contrib.auth.signals import user_logged_in
+def logged_in_handle(sender, user, request, **kwargs):
+    profile = MyUser.objects.filter(user=request.user)
+    if not profile.exists():
+        MyUser.objects.create(
+            user = request.user,
+            isreviewer = False,
+        ) 
+user_logged_in.connect(logged_in_handle)
